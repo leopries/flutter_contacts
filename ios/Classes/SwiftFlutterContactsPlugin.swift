@@ -198,6 +198,18 @@ public enum FlutterContacts {
         return Contact(fromContact: contact).toMap()
     }
 
+    // Generate a new contact from Arguments.
+    static func generateContact(
+        _ args: [String: Any?],
+        _ includeNotesOnIos13AndAbove: Bool
+    ) throws -> [String: Any?] {
+        let contact = CNMutableContact()
+
+        addFieldsToContact(args, contact, includeNotesOnIos13AndAbove)
+
+        return Contact(fromContact: contact)
+    }
+
     // Updates an existing contact in the database.
     static func update(
         _ args: [String: Any?],
@@ -490,6 +502,36 @@ public class SwiftFlutterContactsPlugin: NSObject, FlutterPlugin, FlutterStreamH
                 let navigationController = UINavigationController(rootViewController: contactView)
                 self.rootViewController.present(navigationController, animated: true, completion: nil)
                 self.externalResult = result
+            }
+        case "openExternalInsertUnknown":
+            DispatchQueue.global(qos: .userInteractive).async {
+                let args = call.arguments as! [Any?]
+                let c = args[0] as! [String: Any?]
+                let includeNotesOnIos13AndAbove = args[1] as! Bool
+                do {
+                    let contact = try FlutterContacts.generateContact(
+                        c, includeNotesOnIos13AndAbove
+                    )
+                    let contactView = CNContactViewController(forUnknownContact: contact)
+                    contactView.navigationItem.backBarButtonItem = UIBarButtonItem(
+                        title: "Cancel",
+                        style: .plain,
+                        target: self,
+                        action: #selector(self.contactViewControllerDidCancel)
+                    )
+                    contactView.delegate = self
+                    // https://stackoverflow.com/a/39594589
+                    let navigationController = UINavigationController(rootViewController: contactView)
+                    self.rootViewController.present(navigationController, animated: true, completion: nil)
+                    self.externalResult = result
+                } catch {
+                    result(FlutterError(
+                        code: "unknown error",
+                        message: "unknown error",
+                        details: error.localizedDescription
+                    ))
+                }
+                
             }
         default:
             result(FlutterMethodNotImplemented)

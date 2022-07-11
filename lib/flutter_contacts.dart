@@ -268,6 +268,24 @@ class FlutterContacts {
     return id == null ? null : getContact(id);
   }
 
+  /// Opens external contact app to insert a new contact or update an existing contact.
+  static Future<Contact?> openExternalInsertUnknown(Contact contact) async {
+    // This avoids the accidental case where we want to update a contact but
+    // insert it instead, which would result in two identical contacts.
+    if (contact.id.isNotEmpty) {
+      throw Exception('Cannot insert contact that already has an ID');
+    }
+    if (!contact.isUnified) {
+      throw Exception('Cannot insert raw contacts');
+    }
+    final id = await _channel.invokeMethod('openExternalInsertUnknown', [
+      contact.toJson(),
+      config.includeNotesOnIos13AndAbove,
+    ]);
+
+    return id == null ? null : getContact(id);
+  }
+
   static Future<List<Contact>> _select({
     String? id,
     bool withProperties = false,
