@@ -202,12 +202,12 @@ public enum FlutterContacts {
     static func generateContact(
         _ args: [String: Any?],
         _ includeNotesOnIos13AndAbove: Bool
-    ) throws -> [String: Any?] {
+    ) throws -> CNContact {
         let contact = CNMutableContact()
 
         addFieldsToContact(args, contact, includeNotesOnIos13AndAbove)
-
-        return Contact(fromContact: contact)
+        
+        return contact //Contact(fromContact: contact)
     }
 
     // Updates an existing contact in the database.
@@ -504,7 +504,7 @@ public class SwiftFlutterContactsPlugin: NSObject, FlutterPlugin, FlutterStreamH
                 self.externalResult = result
             }
         case "openExternalInsertUnknown":
-            DispatchQueue.global(qos: .userInteractive).async {
+            DispatchQueue.main.async {
                 let args = call.arguments as! [Any?]
                 let c = args[0] as! [String: Any?]
                 let includeNotesOnIos13AndAbove = args[1] as! Bool
@@ -513,15 +513,13 @@ public class SwiftFlutterContactsPlugin: NSObject, FlutterPlugin, FlutterStreamH
                         c, includeNotesOnIos13AndAbove
                     )
                     let contactView = CNContactViewController(forUnknownContact: contact)
-                    contactView.navigationItem.backBarButtonItem = UIBarButtonItem(
-                        title: "Cancel",
-                        style: .plain,
-                        target: self,
-                        action: #selector(self.contactViewControllerDidCancel)
-                    )
+                    contactView.addDissmissButton()
+                    contactView.contactStore = CNContactStore()
                     contactView.delegate = self
+                    
                     // https://stackoverflow.com/a/39594589
                     let navigationController = UINavigationController(rootViewController: contactView)
+                    
                     self.rootViewController.present(navigationController, animated: true, completion: nil)
                     self.externalResult = result
                 } catch {
@@ -583,5 +581,35 @@ public class SwiftFlutterContactsPlugin: NSObject, FlutterPlugin, FlutterStreamH
             result(nil)
             externalResult = nil
         }
+    }
+}
+
+extension UIBarButtonItem {
+    private struct AssociatedObject {
+        static var key = "action_closure_key"
+}
+
+var actionClosure: (()->Void)? {
+    get {
+        return objc_getAssociatedObject(self, &AssociatedObject.key) as? ()->Void
+    }
+    set {
+        objc_setAssociatedObject(self, &AssociatedObject.key, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        target = self
+        action = #selector(didTapButton(sender:))
+    }
+}
+
+@objc func didTapButton(sender: Any) {
+    actionClosure?()
+}
+}
+extension UIViewController{
+    func addDissmissButton(){
+        let cancelButton = UIBarButtonItem.init(title: "Cancel", style: .plain, target: self, action: nil)
+        cancelButton.actionClosure = {
+            self.dismiss(animated: true)
+        }
+        self.navigationItem.leftBarButtonItem = cancelButton
     }
 }
