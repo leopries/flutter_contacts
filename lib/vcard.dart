@@ -253,17 +253,23 @@ class VCardParser {
           if (params.any((p) => p.key == 'X-USER' && p.value == 'TENCENT')) {
             protocol = 'tencent';
           }
-          var userName = decode(content);
+          var socialInput = content.split(':');
+
+          final title =
+              socialInput.reversed.toList().sublist(2).reversed.join(':');
+
+          final link =
+              socialInput.reversed.toList().sublist(0, 2).reversed.join(':');
+
+          var userName = link;
           for (final prefix in ['x-apple:', 'xmpp:']) {
             if (userName.startsWith(prefix)) {
               userName = userName.substring(prefix.length);
               break;
             }
           }
-          final label =
-              lowerCaseStringToSocialMediaLabel[protocol.toLowerCase()] ??
-                  SocialMediaLabel.custom;
-          final customLabel = label == SocialMediaLabel.custom ? protocol : '';
+          final label = SocialMediaLabel.custom;
+          final customLabel = decode(title);
           contact.socialMedias.add(
               SocialMedia(userName, label: label, customLabel: customLabel));
           break;
